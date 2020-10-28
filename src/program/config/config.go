@@ -16,11 +16,16 @@ type Kafka struct {
 	Hosts []string
 }
 
+type Etcd struct {
+	Hosts []string
+}
+
 type ConfigStore struct {
 	SystemLogPath  string     // 系统日志地址
 	SystemLogLevel string     // 系统日志等级
 	Instances      []Instance // 监听实例地址
 	KafkaConfig    Kafka      // kafka配置
+	EtcdConfig	   Etcd		  // etcd配置
 }
 
 func InitConfig() (conf ConfigStore, err error) {
@@ -52,6 +57,13 @@ func InitConfig() (conf ConfigStore, err error) {
 
 	kafkaConf := configer.String("kafka::hosts")
 	err = json.Unmarshal([]byte(kafkaConf), &(conf.KafkaConfig.Hosts))
+	if err != nil {
+		err = CONFINITERROR
+		return
+	}
+
+	etcdConf := configer.String("etcd::hosts")
+	err = json.Unmarshal([]byte(etcdConf), &(conf.EtcdConfig.Hosts))
 	if err != nil {
 		err = CONFINITERROR
 		return
