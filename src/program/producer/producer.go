@@ -1,4 +1,4 @@
-package tail
+package producer
 
 import (
 	collectorConfig "../config"
@@ -68,9 +68,9 @@ func (p *TailInfo) Kill() {
 
 }
 
-func InitTailAndKafka(instance collectorConfig.Instance, kafka collectorConfig.Kafka) (tailInstance TailInfo, kafkaProInstance *collectorKafka.KafkaProducer, err error) {
+func InitTailAndKafka(instance collectorConfig.Instance, kafka collectorConfig.Kafka) (tailInstance *TailInfo, kafkaProInstance *collectorKafka.KafkaProducer, err error) {
 	logPath, err := filepath.Abs(instance.LogFilePath)
-	tailInstance = TailInfo{
+	tailInstance = &TailInfo{
 		LogPath: logPath,
 		Topic:   instance.Topic,
 	}

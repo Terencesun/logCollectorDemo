@@ -4,7 +4,7 @@ import (
 	collectorConfig "./config"
 	collectorConsumer "./consumer"
 	collectorLog "./log"
-	collectorTail "./tail"
+	collectorProducer "./producer"
 	"sync"
 )
 
@@ -29,8 +29,8 @@ func main() {
 
 	for _, instance := range conf.Instances {
 		waitGroup.Add(2)
-		tailInstance, kafkaProInstance, err := collectorTail.InitTailAndKafka(instance, conf.KafkaConfig)
-		kafkaConInstance, err := collectorConsumer.InitConsumer(instance, conf.KafkaConfig)
+		tailInstance, kafkaProInstance, err := collectorProducer.InitTailAndKafka(instance, conf.KafkaConfig)
+		kafkaConInstance, err := collectorConsumer.InitConsumer(conf.KafkaConfig)
 		if err != nil {
 			panic("tail init error")
 		}
