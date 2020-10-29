@@ -1,9 +1,9 @@
 package log
 
 import (
-	collectionConfig "../config"
 	"encoding/json"
 	"github.com/astaxie/beego/logs"
+	collectionConfig "logCollector/src/config"
 )
 
 func InitLogger(conf collectionConfig.ConfigStore) (err error) {

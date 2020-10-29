@@ -1,10 +1,11 @@
 package main
 
 import (
-	collectorConfig "./config"
-	collectorConsumer "./consumer"
-	collectorLog "./log"
-	collectorProducer "./producer"
+	collectorConfig "logCollector/src/config"
+	collectorConsumer "logCollector/src/consumer"
+	collectorEtcd "logCollector/src/etcd"
+	collectorLog "logCollector/src/log"
+	collectorProducer "logCollector/src/producer"
 	"sync"
 )
 
@@ -23,6 +24,11 @@ func main() {
 	}
 
 	err = collectorLog.InitLogger(conf)
+	if err != nil {
+		panic("logger init error")
+	}
+
+	err = collectorEtcd.InitEtcd(conf)
 	if err != nil {
 		panic("logger init error")
 	}

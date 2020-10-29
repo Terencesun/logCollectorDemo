@@ -1,9 +1,9 @@
 package kafka
 
 import (
-	collectorConfig "../config"
 	"fmt"
 	"github.com/Shopify/sarama"
+	collectorConfig "logCollector/src/config"
 	"sync"
 )
 

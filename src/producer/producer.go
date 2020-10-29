@@ -1,10 +1,10 @@
 package producer
 
 import (
-	collectorConfig "../config"
-	collectorKafka "../kafka"
 	"fmt"
 	"github.com/hpcloud/tail"
+	collectorConfig "logCollector/src/config"
+	collectorKafka "logCollector/src/kafka"
 	"os"
 	"path/filepath"
 	"sync"

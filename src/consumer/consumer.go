@@ -1,8 +1,8 @@
 package consumer
 
 import (
-	collectorConfig "../config"
-	collectorKafka "../kafka"
+	collectorConfig "logCollector/src/config"
+	collectorKafka "logCollector/src/kafka"
 )
 
 func InitConsumer(kafka collectorConfig.Kafka) (consumerInstance *collectorKafka.KafkaConsumer, err error) {
