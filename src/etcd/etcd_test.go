@@ -15,7 +15,7 @@ func TestEtcd(t *testing.T)  {
 		},
 	}
 	// 初始化
-	etcdInstance, err := collectorEtcd.InitEtcd(conf)
+	etcdInstance, err := collectorEtcd.InitEtcd(conf.EtcdConfig.Hosts)
 	if err != nil {
 		t.Error(err)
 	}
@@ -24,8 +24,10 @@ func TestEtcd(t *testing.T)  {
 
 	time.Sleep(time.Second * 5)
 
-	etcdInstance.SetKey("test", "test3")
-	etcdInstance.SetKey("test", "test3")
+	//etcdInstance.SetKey("server/serverLogPath", "./system.log")
+	//etcdInstance.SetKey("server/logLevel", "debug")
+	etcdInstance.SetKey("server/instances", "[{\"topic\": \"test1\", \"logPath\": \"D:\\\\terence\\\\log\\\\test_log.txt\"},{\"topic\": \"test2\", \"logPath\": \"D:\\\\terence\\\\log\\\\test_.txt1\"}]")
+	//etcdInstance.SetKey("kafka/hosts", "[\"127.0.0.1:9092\"]")
 
 	val, err := etcdInstance.GetKey("test")
 	if err != nil {

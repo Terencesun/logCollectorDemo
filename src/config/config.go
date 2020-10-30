@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	beegoConfig "github.com/astaxie/beego/config"
+	collectorEtcd "logCollector/src/etcd"
 	"path/filepath"
 )
 
@@ -28,7 +29,7 @@ type ConfigStore struct {
 	EtcdConfig	   Etcd		  // etcd配置
 }
 
-func InitConfig() (conf ConfigStore, err error) {
+func InitConfig() (conf ConfigStore, etcdIns *collectorEtcd.Etcd, err error) {
 	conf = ConfigStore{}
 	// 初始化地址
 	confPath, err := filepath.Abs("./env.conf")
@@ -45,25 +46,33 @@ func InitConfig() (conf ConfigStore, err error) {
 		return
 	}
 
-	serverConf := configer.String("server::instances")
-	err = json.Unmarshal([]byte(serverConf), &(conf.Instances))
-	if err != nil {
-		err = CONFINITERROR
-		return
-	}
-
-	conf.SystemLogPath, _ = filepath.Abs(configer.String("server::serverLogPath"))
-	conf.SystemLogLevel, _ = filepath.Abs(configer.String("server::serverLogLevel"))
-
-	kafkaConf := configer.String("kafka::hosts")
-	err = json.Unmarshal([]byte(kafkaConf), &(conf.KafkaConfig.Hosts))
-	if err != nil {
-		err = CONFINITERROR
-		return
-	}
-
 	etcdConf := configer.String("etcd::hosts")
 	err = json.Unmarshal([]byte(etcdConf), &(conf.EtcdConfig.Hosts))
+	if err != nil {
+		err = CONFINITERROR
+		return
+	}
+
+	etcdIns, err = collectorEtcd.InitEtcd(conf.EtcdConfig.Hosts)
+	if err != nil {
+		panic("logger init error")
+	}
+
+	serverLogPath, err := etcdIns.GetKey("server/serverLogPath")
+	conf.SystemLogPath, _ = filepath.Abs(serverLogPath)
+
+	serverLevel, err := etcdIns.GetKey("server/logLevel")
+	conf.SystemLogLevel, _ = filepath.Abs(serverLevel)
+
+	serverInses, err := etcdIns.GetKey("server/instances")
+	err = json.Unmarshal([]byte(serverInses), &(conf.Instances))
+	if err != nil {
+		err = CONFINITERROR
+		return
+	}
+
+	kafkaConf, err := etcdIns.GetKey("kafka/hosts")
+	err = json.Unmarshal([]byte(kafkaConf), &(conf.KafkaConfig.Hosts))
 	if err != nil {
 		err = CONFINITERROR
 		return

@@ -3,7 +3,6 @@ package etcd
 import (
 	"context"
 	etcd "github.com/coreos/etcd/clientv3"
-	collectorConfig "logCollector/src/config"
 	"time"
 )
 
@@ -33,32 +32,34 @@ func (p *Etcd) SetKey(key string, val string) (err error) {
 	return
 }
 
-func (p *Etcd) SetWatch(key string) (watchChan *chan string) {
+func (p *Etcd) SetWatch(key string) (watchChan *chan string, err error) {
 	// 必须初始化，要不为nil channel，无论给不给值进去都会阻塞
 	ch := make(chan string)
 	go func() {
 		var lastVal string = ""
+		val, err := p.GetKey(key)
+		if err != nil {
+			return
+		}
+		lastVal = val
 		watchCh := p.Client.Watch(context.TODO(), key)
 		for res := range watchCh {
 			//ch <- res
 			if lastVal != string(res.Events[0].Kv.Value) {
+				lastVal = string(res.Events[0].Kv.Value)
 				ch <- string(res.Events[0].Kv.Value)
 			} else {
 				continue
 			}
 		}
 	}()
-	return &ch
+	return &ch, err
 }
 
-func (p *Etcd) GetConfig()  {
-
-}
-
-func InitEtcd(conf collectorConfig.ConfigStore) (etcdInstance *Etcd, err error) {
+func InitEtcd(hosts []string) (etcdInstance *Etcd, err error) {
 	etcdInstance = &Etcd{}
 	etcdInstance.Client, err = etcd.New(etcd.Config{
-		Endpoints: conf.EtcdConfig.Hosts,
+		Endpoints: hosts,
 		DialTimeout: 30 * time.Second,
 	})
 	if err != nil {

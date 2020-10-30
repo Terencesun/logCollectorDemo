@@ -9,6 +9,7 @@ import (
 
 type KafkaProducer struct {
 	Client sarama.SyncProducer
+	KillChan *chan bool
 }
 
 func (p *KafkaProducer) SendMsg(topic string, value []byte) (err error) {
@@ -24,8 +25,10 @@ func (p *KafkaProducer) SendMsg(topic string, value []byte) (err error) {
 	return
 }
 
-func InitKafkaProducer(conf collectorConfig.Kafka) (kafkaInstance *KafkaProducer, err error) {
-	kafkaInstance = &KafkaProducer{}
+func InitKafkaProducer(conf collectorConfig.Kafka, killChan *chan bool) (kafkaInstance *KafkaProducer, err error) {
+	kafkaInstance = &KafkaProducer{
+		KillChan: killChan,
+	}
 	config := sarama.NewConfig()
 	config.Producer.RequiredAcks = sarama.WaitForAll
 	config.Producer.Partitioner = sarama.NewRandomPartitioner
@@ -35,6 +38,16 @@ func InitKafkaProducer(conf collectorConfig.Kafka) (kafkaInstance *KafkaProducer
 	if err != nil {
 		return
 	}
+	go func() {
+		loop: for {
+			select {
+			case <- *killChan:
+				kafkaInstance.Client.Close()
+				fmt.Printf("close kafka producer, %v\n", conf.Hosts)
+				break loop
+			}
+		}
+	}()
 	return
 }
 
@@ -43,7 +56,7 @@ type KafkaConsumer struct {
 	PartitionList []int32
 }
 
-func (p *KafkaConsumer) Init(topic string) (err error) {
+func (p *KafkaConsumer) Init(topic string, killChan *chan bool) (err error) {
 	var wg sync.WaitGroup
 	partitionList, err := p.Client.Partitions(topic)
 	if err != nil {
@@ -59,9 +72,15 @@ func (p *KafkaConsumer) Init(topic string) (err error) {
 		defer partitionConsumer.AsyncClose()
 		wg.Add(1)
 		go func(pc sarama.PartitionConsumer) {
-			for msg := range pc.Messages() {
-				// todo 写入es
-				fmt.Printf("Partition:%d, Offset:%d, Key:%s, Value:%s\n", msg.Partition, msg.Offset, string(msg.Key), string(msg.Value))
+			loop: for {
+				select {
+				case msg := <-pc.Messages():
+					// todo 写入es
+					fmt.Printf("Partition:%d, Offset:%d, Key:%s, Value:%s\n", msg.Partition, msg.Offset, string(msg.Key), string(msg.Value))
+				case <- *killChan:
+					fmt.Printf("close consumer, %v\n", topic)
+					break loop
+				}
 			}
 			wg.Done()
 		}(partitionConsumer)

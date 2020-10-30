@@ -2,23 +2,17 @@ package main
 
 import (
 	collectorConfig "logCollector/src/config"
-	collectorConsumer "logCollector/src/consumer"
-	collectorEtcd "logCollector/src/etcd"
+	collectorFactory "logCollector/src/factory"
 	collectorLog "logCollector/src/log"
-	collectorProducer "logCollector/src/producer"
 	"sync"
 )
 
-var (
-	systemEnv map[string]string
-)
 
 func main() {
 
-	systemEnv = make(map[string]string)
 	var waitGroup sync.WaitGroup
 
-	conf, err := collectorConfig.InitConfig()
+	conf, etcdIns, err := collectorConfig.InitConfig()
 	if err != nil {
 		panic("config init error")
 	}
@@ -28,21 +22,30 @@ func main() {
 		panic("logger init error")
 	}
 
-	err = collectorEtcd.InitEtcd(conf)
-	if err != nil {
-		panic("logger init error")
-	}
+	factory := &collectorFactory.Factory{}
+	factory.Init(conf, &waitGroup)
 
 	for _, instance := range conf.Instances {
 		waitGroup.Add(2)
-		tailInstance, kafkaProInstance, err := collectorProducer.InitTailAndKafka(instance, conf.KafkaConfig)
-		kafkaConInstance, err := collectorConsumer.InitConsumer(conf.KafkaConfig)
+		err := factory.AddWorker(instance, &waitGroup)
 		if err != nil {
-			panic("tail init error")
+			panic("worker init error")
 		}
-		systemEnv[instance.LogFilePath] = instance.Topic
-		tailInstance.Start(kafkaProInstance, kafkaConInstance, &waitGroup)
 	}
+
+	wch, err := etcdIns.SetWatch("server/instances")
+	if err != nil {
+		panic("watch init error")
+	}
+
+	go func(watchChan *chan string) {
+		for v := range *watchChan {
+			err := factory.UpdateWorker(v)
+			if err != nil {
+				panic(err)
+			}
+		}
+	}(wch)
 
 	waitGroup.Wait()
 }

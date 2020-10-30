@@ -15,6 +15,7 @@ type TailInfo struct {
 	LogPath string
 	Topic   string
 	tails   *tail.Tail
+	KillChan *chan bool
 }
 
 func (p *TailInfo) Init() (err error) {
@@ -39,24 +40,29 @@ func (p *TailInfo) Start(kafkaProInstance *collectorKafka.KafkaProducer, kafkaCo
 	go func() {
 		var msg *tail.Line
 		var ok bool
-		for {
-			msg, ok = <-p.tails.Lines
-			if !ok {
-				fmt.Printf("tail file close reopen, filename:%s\n", p.tails.Filename)
-				time.Sleep(time.Second * 1)
-				continue
-			}
-			// 写入kafka
-			fmt.Println("msg:", msg.Text)
-			err := kafkaProInstance.SendMsg(p.Topic, []byte(msg.Text))
-			if err != nil {
-				continue
+		loop: for {
+			select {
+			case msg, ok = <-p.tails.Lines:
+				if !ok {
+					fmt.Printf("tail file close reopen, filename:%s\n", p.tails.Filename)
+					time.Sleep(time.Second * 1)
+					continue
+				}
+				// 写入kafka
+				fmt.Println("msg:", msg.Text)
+				err := kafkaProInstance.SendMsg(p.Topic, []byte(msg.Text))
+				if err != nil {
+					continue
+				}
+			case <- *p.KillChan:
+				fmt.Printf("close tail, topic: %v, path: %v\n", p.Topic, p.LogPath)
+				break loop
 			}
 		}
 		lock.Done()
 	}()
 	go func() {
-		err := kafkaConInstance.Init(p.Topic)
+		err := kafkaConInstance.Init(p.Topic, p.KillChan)
 		if err != nil {
 			lock.Done()
 		}
@@ -64,18 +70,15 @@ func (p *TailInfo) Start(kafkaProInstance *collectorKafka.KafkaProducer, kafkaCo
 	}()
 }
 
-func (p *TailInfo) Kill() {
-
-}
-
-func InitTailAndKafka(instance collectorConfig.Instance, kafka collectorConfig.Kafka) (tailInstance *TailInfo, kafkaProInstance *collectorKafka.KafkaProducer, err error) {
+func InitTailAndKafka(instance collectorConfig.Instance, kafka collectorConfig.Kafka, killChan *chan bool) (tailInstance *TailInfo, kafkaProInstance *collectorKafka.KafkaProducer, err error) {
 	logPath, err := filepath.Abs(instance.LogFilePath)
 	tailInstance = &TailInfo{
 		LogPath: logPath,
 		Topic:   instance.Topic,
+		KillChan: killChan,
 	}
 
-	kafkaProInstance, err = collectorKafka.InitKafkaProducer(kafka)
+	kafkaProInstance, err = collectorKafka.InitKafkaProducer(kafka, killChan)
 
 	err = tailInstance.Init()
 
