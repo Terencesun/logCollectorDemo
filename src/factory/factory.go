@@ -15,20 +15,19 @@ type Factory struct {
 	Wg *sync.WaitGroup
 }
 
-func (p *Factory) Init(conf collectorConfig.ConfigStore, wg *sync.WaitGroup)  {
+func (p *Factory) Init(conf collectorConfig.ConfigStore)  {
 	p.WorkerInfo = make(map[string]*Worker)
 	p.Config = conf
-	p.Wg = wg
 }
 
-func (p *Factory) AddWorker(instance collectorConfig.Instance, waitGroup *sync.WaitGroup) (err error) {
+func (p *Factory) AddWorker(instance collectorConfig.Instance) (err error) {
 	wk := &Worker{
 		path: instance.LogFilePath,
 	}
 
 	p.WorkerInfo[instance.LogFilePath] = wk
 
-	err = wk.Create(instance, p.Config, waitGroup)
+	err = wk.Create(instance, p.Config)
 
 	return
 }
@@ -68,7 +67,7 @@ func (p *Factory) UpdateWorker(instanceString string) (err error) {
 	for _, v := range instances {
 		if _, ok := p.WorkerInfo[v.LogFilePath]; !ok {
 			// 新的，进行创建
-			err = p.AddWorker(v, p.Wg)
+			err = p.AddWorker(v)
 			if err != nil {
 				fmt.Println(err)
 				fmt.Printf("创建新的实例%v失败\n", v.LogFilePath)
@@ -85,7 +84,7 @@ type Worker struct {
 	killChan chan bool
 }
 
-func (p *Worker) Create(instance collectorConfig.Instance, conf collectorConfig.ConfigStore, waitGroup *sync.WaitGroup) (err error) {
+func (p *Worker) Create(instance collectorConfig.Instance, conf collectorConfig.ConfigStore) (err error) {
 	p.killChan = make(chan bool)
 	tailInstance, kafkaProInstance, err := collectorProducer.InitTailAndKafka(instance, conf.KafkaConfig, &p.killChan)
 	kafkaConInstance, err := collectorConsumer.InitConsumer(conf.KafkaConfig)
@@ -93,7 +92,7 @@ func (p *Worker) Create(instance collectorConfig.Instance, conf collectorConfig.
 		err = TAILINITERROR
 		return
 	}
-	tailInstance.Start(kafkaProInstance, kafkaConInstance, waitGroup)
+	tailInstance.Start(kafkaProInstance, kafkaConInstance)
 	return
 }
 

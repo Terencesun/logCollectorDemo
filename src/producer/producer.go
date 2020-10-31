@@ -7,7 +7,6 @@ import (
 	collectorKafka "logCollector/src/kafka"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 )
 
@@ -36,7 +35,7 @@ func (p *TailInfo) Init() (err error) {
 	return
 }
 
-func (p *TailInfo) Start(kafkaProInstance *collectorKafka.KafkaProducer, kafkaConInstance *collectorKafka.KafkaConsumer, lock *sync.WaitGroup) {
+func (p *TailInfo) Start(kafkaProInstance *collectorKafka.KafkaProducer, kafkaConInstance *collectorKafka.KafkaConsumer) {
 	go func() {
 		var msg *tail.Line
 		var ok bool
@@ -59,14 +58,9 @@ func (p *TailInfo) Start(kafkaProInstance *collectorKafka.KafkaProducer, kafkaCo
 				break loop
 			}
 		}
-		lock.Done()
 	}()
 	go func() {
-		err := kafkaConInstance.Init(p.Topic, p.KillChan)
-		if err != nil {
-			lock.Done()
-		}
-		lock.Done()
+		kafkaConInstance.Init(p.Topic, p.KillChan)
 	}()
 }
 
